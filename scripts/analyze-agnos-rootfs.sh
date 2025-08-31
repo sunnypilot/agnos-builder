@@ -19,7 +19,7 @@ exec() {
 trap "docker container rm -f $MOUNT_CONTAINER_ID > /dev/null" EXIT
 
 # Mount filesystem
-ls -la BUILD_DIR
+ls -la $BUILD_DIR
 exec mkdir -p "$ROOTFS_DIR"
 exec mount "$ROOTFS_IMAGE" "$ROOTFS_DIR"
 
