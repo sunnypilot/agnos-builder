@@ -95,6 +95,13 @@ jobs:
           name: system
           path: output/system
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: output/build
+
+
   # Build userdata (optional parallel job)
   userdata:
     name: Build User Data
@@ -127,16 +134,26 @@ jobs:
           lfs: true
           submodules: true
 
-      - name: Download artifacts
+      - name: Download kernel artifacts
         uses: actions/download-artifact@v4
         with:
           name: kernel
           path: output/kernel
-      - uses: actions/download-artifact@v4
+
+      - name: Download system artifacts
+        uses: actions/download-artifact@v4
         with:
           name: system
           path: output/system
-      - uses: actions/download-artifact@v4
+          
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: output/build
+
+      - name: Download userdata artifacts
+        uses: actions/download-artifact@v4
         with:
           name: userdata
           path: output/userdata

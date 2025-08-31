@@ -13,7 +13,7 @@ ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
 FIRMWARE_DIR = ROOT / "firmware"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
-BUILD_DIR = ROOT / "build"
+BUILD_DIR = ROOT / "output" / "build"
 
 SECTOR_SIZE = 4096
 
