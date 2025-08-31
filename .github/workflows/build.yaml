@@ -36,6 +36,7 @@ jobs:
             LAST_COMMIT_MESSAGE=$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')
           fi
           echo "last_commit_message=$LAST_COMMIT_MESSAGE" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
 
   # Build kernel
   kernel:
