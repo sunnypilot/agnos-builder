@@ -11,83 +11,148 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: build kernel and system
+  # Get commit message (shared step)
+  prepare:
+    name: Prepare Environment
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    outputs:
+      last_commit_message: ${{ steps.get_commit.outputs.last_commit_message }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        lfs: true
-        submodules: true
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
-    - name: Get commit message
-      run: |
-        {
-          echo 'LAST_COMMIT_MESSAGE<<EOF'
+      - name: Get commit message
+        id: get_commit
+        run: |
+          LAST_COMMIT_MESSAGE=""
           if [ "${{ github.event_name }}" == "push" ]; then
-            echo "${{ github.event.head_commit.message }}"
+            LAST_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
-            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
+            LAST_COMMIT_MESSAGE=$(curl -s "$COMMIT_URL" | jq -r '.commit.message')
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
-            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
+            LAST_COMMIT_MESSAGE=$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')
           fi
-          echo EOF
-        } | tee -a $GITHUB_ENV
+          echo "last_commit_message=$LAST_COMMIT_MESSAGE" >> $GITHUB_OUTPUT
 
-    - name: Get kernel submodule ref
-      id: kernel-submodule
-      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+  # Build kernel
+  kernel:
+    name: Build Kernel
+    runs-on: ubuntu-24.04-arm
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: kernel-
+      - name: Get kernel submodule ref
+        id: kernel-submodule
+        run: echo "ref=$(git ls-tree HEAD | awk '$4 == \"agnos-kernel-sdm845\" {print $3}')" | tee -a $GITHUB_OUTPUT
 
-    - name: Build kernel
-      run: ./build_kernel.sh
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+          restore-keys: kernel-
 
-    - name: Update VERSION
-      if: github.event_name == 'pull_request'
-      run: |
-        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+      - name: Build kernel
+        run: ./build_kernel.sh
 
-    - name: Build system
-      env:
-        GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel
+          path: out/kernel
 
-    - name: Statistics
-      id: stats
-      run: |
-        {
-          echo 'stats_summary<<EOF'
-          scripts/analyze-agnos-rootfs.sh
-          echo EOF
-        } | tee -a $GITHUB_OUTPUT
+  # Build system
+  system:
+    name: Build System
+    runs-on: ubuntu-24.04-arm
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
-    - name: Package and OTA push
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      env:
-        AGNOS_UPDATE_URL: https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
-      run: |
-        scripts/build_userdata.sh
-        scripts/package_ota.py
+      - name: Update VERSION
+        if: github.event_name == 'pull_request'
+        run: |
+          echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
-    - name: Save PR number, VERSION and stats
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      run: |
-        echo ${{ github.event.number }} > output/ota/PR
-        cp VERSION output/ota
-        echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
+      - name: Build system
+        env:
+          GIT_HASH: ${{ github.event.pull_request.head.sha }}
+        run: ./build_system.sh
 
-    - name: Upload artifacts
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      uses: actions/upload-artifact@v4
-      with:
-        name: agnos-artifacts
-        path: output/ota
-        compression-level: 0
+      - name: Upload system artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: system
+          path: out/system
+
+  # Build userdata (optional parallel job)
+  userdata:
+    name: Build User Data
+    runs-on: ubuntu-24.04-arm
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
+
+      - name: Build userdata
+        run: scripts/build_userdata.sh
+
+      - name: Upload userdata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: userdata
+          path: out/userdata
+
+  # Package and OTA push (converge step)
+  package_ota:
+    name: Package and OTA Push
+    runs-on: ubuntu-24.04-arm
+    needs: [kernel, system, userdata]
+    if: contains(needs.prepare.outputs.last_commit_message, '[upload]')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel
+          path: out/kernel
+      - uses: actions/download-artifact@v4
+        with:
+          name: system
+          path: out/system
+      - uses: actions/download-artifact@v4
+        with:
+          name: userdata
+          path: out/userdata
+
+      - name: Package OTA
+        run: scripts/package_ota.py
+
+      - name: Save PR number, VERSION, and stats
+        run: |
+          echo ${{ github.event.number }} > output/ota/PR
+          cp VERSION output/ota
+          scripts/analyze-agnos-rootfs.sh > output/ota/agnos_stats.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agnos-artifacts
+          path: output/ota
+          compression-level: 0
