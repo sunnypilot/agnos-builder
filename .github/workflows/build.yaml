@@ -74,6 +74,7 @@ jobs:
       env:
         AGNOS_UPDATE_URL: https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
       run: |
+        scripts/build_userdata.sh
         scripts/package_ota.py
 
     - name: Save PR number, VERSION and stats
