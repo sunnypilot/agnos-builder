@@ -3,7 +3,7 @@ set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 ROOT=$DIR/..
-OUTPUT_DIR=$DIR/../output
+OUTPUT_DIR=$DIR/../output/userdata
 GIT_BRANCH=staging-c3-new
 RELEASE_BRANCH="master"
 
@@ -58,3 +58,6 @@ for sz in 30 89 90; do
 done
 
 echo "Done!"
+ls -la 
+ls -la $OUTPUT_DIR
+ls -la $DIR
