@@ -45,7 +45,9 @@ function create_image() {
   sudo umount $MNTDIR
 
   echo "Sparsify"
-  docker run --rm -u $(id -nu) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  mkdir -p $OUTPUT_DIR  # ensure output exists
+  docker run --rm -u $(id -u):$(id -g) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+
   rm -rf $WORKDIR
 }
 
