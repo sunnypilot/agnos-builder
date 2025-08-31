@@ -7,7 +7,7 @@ DEFCONFIG=tici_defconfig
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 TOOLS=$DIR/tools
 TMP_DIR=/tmp/agnos-builder-tmp
-OUTPUT_DIR=$DIR/output
+OUTPUT_DIR=$DIR/output/kernel
 BOOT_IMG=./boot.img
 cd $DIR
 
