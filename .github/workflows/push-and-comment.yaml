@@ -27,7 +27,7 @@ jobs:
       - name: Checkout ci-artifacts
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b master git@gitlab.com:commaai/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+          git clone -b master git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
 
       - name: Download artifact
         id: download-artifact
@@ -65,7 +65,7 @@ jobs:
           {
             echo 'XZ_FILES<<EOF'
             for file in *.xz; do
-              echo "* [$file](https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
+              echo "* [$file](https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
             done
             echo EOF
           } >> $GITHUB_ENV
@@ -85,7 +85,7 @@ jobs:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
             ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
-            In an openpilot branch, download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
+            In an openpilot branch, download <a href="https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
