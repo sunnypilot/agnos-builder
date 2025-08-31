@@ -51,7 +51,8 @@ function create_image() {
   rm -rf $WORKDIR
 }
 
-for sz in 30 89 90; do
+#for sz in 30 89 90; do
+for sz in 3 4 5; do
   echo "Building ${sz}GB userdata image"
   create_image ${sz}G
 done
