@@ -25,8 +25,8 @@ function create_image() {
   mkdir $WORKDIR
   cd $WORKDIR
 
-  fallocate -l $IMAGE_SIZE $USERDATA_IMAGE
-  mkfs.ext4 $USERDATA_IMAGE
+  truncate -s $IMAGE_SIZE $USERDATA_IMAGE
+  mkfs.ext4 -F -E lazy_itable_init=0,lazy_journal_init=0 $USERDATA_IMAGE
 
   mkdir $MNTDIR
   sudo mount $USERDATA_IMAGE $MNTDIR
@@ -51,8 +51,8 @@ function create_image() {
   rm -rf $WORKDIR
 }
 
-#for sz in 30 89 90; do
-for sz in 3 4 5; do
+for sz in 30 89 90; do
+#for sz in 3 4 5; do
   echo "Building ${sz}GB userdata image"
   create_image ${sz}G
 done
