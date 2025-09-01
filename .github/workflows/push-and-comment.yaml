@@ -1,7 +1,6 @@
 name: push and comment
 
 on:
-  push:
   workflow_run:
     workflows: ["build"]
     types: [completed]
