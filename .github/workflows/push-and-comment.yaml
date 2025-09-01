@@ -6,10 +6,9 @@ on:
     types: [completed]
   workflow_dispatch:
     inputs:
-      branch:
-        description: "Branch to fetch the latest successful build artifacts from"
+      run_id:
+        description: "Run ID of the build workflow (only needed for manual runs)"
         required: true
-        default: "main"
       pr_number:
         description: "PR number (only needed for manual runs)"
         required: true
@@ -54,10 +53,10 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: build
-          branch: ${{ github.event.inputs.branch }}
           workflow_conclusion: success
           name: agnos-artifacts
           path: ${{ github.workspace }}/ci-artifacts
+          run_id: ${{ github.event.inputs.run_id }}
 
       - name: Read PR number and VERSION
         uses: actions/github-script@v7
