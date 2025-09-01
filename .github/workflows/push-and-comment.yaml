@@ -89,7 +89,6 @@ jobs:
             # Push immediately (with retries)
             RETRIES=5
             for i in $(seq 1 $RETRIES); do
-              git lfs push origin agnos-builder/pr-${{ env.PR_NUMBER }} "$f" && \
               git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force && break
               echo "Push failed for $f, retrying in $((i*10))s..."
               sleep $((i*10))
