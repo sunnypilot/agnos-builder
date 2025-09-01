@@ -20,18 +20,18 @@ jobs:
       actions: read
     steps:
       - name: Setup SSH key
-        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.CI_ARTIFACTS_GITLAB_DEPLOY_KEY }}
 
       - name: Checkout ci-artifacts
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b master git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
 
       - name: Download artifact
         id: download-artifact
-        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11
+        uses: dawidd6/action-download-artifact@v11
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: agnos-artifacts
