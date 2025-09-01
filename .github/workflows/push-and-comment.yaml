@@ -3,16 +3,26 @@ name: push and comment
 on:
   workflow_run:
     workflows: ["build"]
-    types:
-      - completed
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to fetch the latest successful build artifacts from"
+        required: true
+        default: "main"
+      pr_number:
+        description: "PR number (only needed for manual runs)"
+        required: true
 
 jobs:
   push-and-comment:
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      contains(github.event.workflow_run.head_commit.message, '[upload]')
+    if: |
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       contains(github.event.workflow_run.head_commit.message, '[upload]')) ||
+      (github.event_name == 'workflow_dispatch')
     timeout-minutes: 5
     permissions:
       contents: read
@@ -27,13 +37,25 @@ jobs:
       - name: Checkout ci-artifacts
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git "${{ github.workspace }}/ci-artifacts"
 
-      - name: Download artifact
-        id: download-artifact
+      # Auto trigger: artifact by run_id
+      - name: Download artifact (auto)
+        if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v11
         with:
           run_id: ${{ github.event.workflow_run.id }}
+          name: agnos-artifacts
+          path: ${{ github.workspace }}/ci-artifacts
+
+      # Manual trigger: latest successful artifacts from branch
+      - name: Download artifact (manual)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: build
+          branch: ${{ github.event.inputs.branch }}
+          workflow_conclusion: success
           name: agnos-artifacts
           path: ${{ github.workspace }}/ci-artifacts
 
@@ -80,6 +102,7 @@ jobs:
           } >> $GITHUB_ENV
 
       - name: Comment on PR
+        if: github.event_name == 'workflow_run'
         uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
         with:
           message: |
