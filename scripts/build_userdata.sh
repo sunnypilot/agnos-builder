@@ -3,9 +3,9 @@ set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 ROOT=$DIR/..
-OUTPUT_DIR=$DIR/../output
-GIT_BRANCH=release3-staging
-RELEASE_BRANCH="release3"
+OUTPUT_DIR=$DIR/../output/userdata
+GIT_BRANCH=staging-c3-new
+RELEASE_BRANCH="master"
 
 export DOCKER_BUILDKIT=1
 docker build -f $ROOT/Dockerfile.builder -t agnos-meta-builder $DIR \
@@ -25,12 +25,12 @@ function create_image() {
   mkdir $WORKDIR
   cd $WORKDIR
 
-  fallocate -l $IMAGE_SIZE $USERDATA_IMAGE
-  mkfs.ext4 $USERDATA_IMAGE
+  truncate -s $IMAGE_SIZE $USERDATA_IMAGE
+  mkfs.ext4 -F -E lazy_itable_init=0,lazy_journal_init=0 $USERDATA_IMAGE
 
   mkdir $MNTDIR
   sudo mount $USERDATA_IMAGE $MNTDIR
-  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $MNTDIR/openpilot
+  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/sunnypilot/openpilot.git $MNTDIR/openpilot
   sudo touch $MNTDIR/.openpilot_cache
 
   sudo git -C $MNTDIR/openpilot remote set-branches --add origin $RELEASE_BRANCH
@@ -45,13 +45,19 @@ function create_image() {
   sudo umount $MNTDIR
 
   echo "Sparsify"
-  docker run --rm -u $(id -nu) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  mkdir -p $OUTPUT_DIR  # ensure output exists
+  docker run --rm -u $(id -u):$(id -g) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+
   rm -rf $WORKDIR
 }
 
 for sz in 30 89 90; do
+#for sz in 3 4 5; do
   echo "Building ${sz}GB userdata image"
   create_image ${sz}G
 done
 
 echo "Done!"
+ls -la 
+ls -la $OUTPUT_DIR
+ls -la $DIR

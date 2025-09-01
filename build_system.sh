@@ -9,8 +9,8 @@ UBUNTU_FILE_CHECKSUM="7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48d
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-BUILD_DIR="$DIR/build"
-OUTPUT_DIR="$DIR/output"
+BUILD_DIR="$DIR/output/build"
+OUTPUT_DIR="$DIR/output/system"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
