@@ -1,7 +1,7 @@
 name: tests
 on:
   push:
-    branches: [ master ]
+    branches: [ master, comma_three ]
   pull_request:
 
 jobs:
