@@ -76,21 +76,30 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git lfs track "*.xz"
-          git add .
-          git commit -m "build artifacts for PR #${{ env.PR_NUMBER }}"
+          git add .gitattributes
+          git commit -m "track LFS files" || true
           
-          git config lfs.concurrenttransfers 2
-          git config lfs.tlskeepalive true
-          git config lfs.transfer.maxretries 10
+          for f in *.xz; do
+            echo "Committing and pushing $f ..."
+            
+            # Stage and commit the single file
+            git add "$f"
+            git commit -m "add artifact $f for PR #${{ env.PR_NUMBER }}" || true
           
-          RETRIES=5
-          for i in $(seq 1 $RETRIES); do
-            git lfs push origin agnos-builder/pr-${{ env.PR_NUMBER }} --all && \
-            git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force && break
-            echo "Push failed, retrying in $((i*10))s..."
-            sleep $((i*10))
+            # Push immediately (with retries)
+            RETRIES=5
+            for i in $(seq 1 $RETRIES); do
+              git lfs push origin agnos-builder/pr-${{ env.PR_NUMBER }} "$f" && \
+              git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force && break
+              echo "Push failed for $f, retrying in $((i*10))s..."
+              sleep $((i*10))
+            done
           done
-
+          
+          # Finally push agnos.json
+          git add agnos.json
+          git commit -m "add agnos.json for PR #${{ env.PR_NUMBER }}" || true
+          git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
 
       - name: List .xz files with links
         working-directory: ${{ github.workspace }}/ci-artifacts
