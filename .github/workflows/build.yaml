@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, comma_three ]
   pull_request:
   workflow_dispatch:
 
