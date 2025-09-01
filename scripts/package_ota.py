@@ -13,7 +13,7 @@ ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
 FIRMWARE_DIR = ROOT / "firmware"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
-BUILD_DIR = ROOT / "build"
+BUILD_DIR = ROOT / "output" / "build"
 
 SECTOR_SIZE = 4096
 
@@ -54,11 +54,11 @@ PARTITIONS = [
   Partition('splash', FIRMWARE_DIR / 'splash.img', False, False, True, False),
   Partition('storsec', FIRMWARE_DIR / 'storsec.img', True, False, True, False),
   Partition('tz', FIRMWARE_DIR / 'tz.img', True, False, True, False),
-  Partition('boot', OUTPUT_DIR / 'boot.img', True, True, True, False),
-  Partition('system', OUTPUT_DIR / 'system.img', True, True, False, True),
-  Partition('userdata_90', OUTPUT_DIR / 'userdata_90.img', False, False, True, True),
-  Partition('userdata_89', OUTPUT_DIR / 'userdata_89.img', False, False, True, True),
-  Partition('userdata_30', OUTPUT_DIR / 'userdata_30.img', False, False, True, True),
+  Partition('boot', OUTPUT_DIR / 'kernel/boot.img', True, True, True, False),
+  Partition('system', OUTPUT_DIR / 'system/system.img', True, True, False, True),
+  Partition('userdata_90', OUTPUT_DIR / 'userdata/userdata_90.img', False, False, True, True),
+  Partition('userdata_89', OUTPUT_DIR / 'userdata/userdata_89.img', False, False, True, True),
+  Partition('userdata_30', OUTPUT_DIR / 'userdata/userdata_30.img', False, False, True, True),
 ]
 
 

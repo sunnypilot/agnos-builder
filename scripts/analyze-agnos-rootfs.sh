@@ -4,7 +4,7 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)"
 cd $DIR
 
-BUILD_DIR="$DIR/build"
+BUILD_DIR="$DIR/output/build"
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
 
@@ -19,6 +19,8 @@ exec() {
 trap "docker container rm -f $MOUNT_CONTAINER_ID > /dev/null" EXIT
 
 # Mount filesystem
+ls -la $BUILD_DIR
+exec mkdir -p "$ROOTFS_DIR"
 exec mount "$ROOTFS_IMAGE" "$ROOTFS_DIR"
 
 # Stats
