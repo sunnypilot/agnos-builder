@@ -3,17 +3,26 @@ name: push and comment
 on:
   workflow_run:
     workflows: ["build"]
-    types:
-      - completed
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID of the build workflow (only needed for manual runs)"
+        required: true
+      pr_number:
+        description: "PR number (only needed for manual runs)"
+        required: true
 
 jobs:
   push-and-comment:
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      contains(github.event.workflow_run.head_commit.message, '[upload]')
-    timeout-minutes: 5
+    if: |
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       contains(github.event.workflow_run.head_commit.message, '[upload]')) ||
+      (github.event_name == 'workflow_dispatch')
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
@@ -27,15 +36,27 @@ jobs:
       - name: Checkout ci-artifacts
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git "${{ github.workspace }}/ci-artifacts"
 
-      - name: Download artifact
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v11
+      # Auto trigger: artifact by run_id
+      - name: Download artifact (auto)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v5
         with:
-          run_id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id }}
           name: agnos-artifacts
           path: ${{ github.workspace }}/ci-artifacts
+          github-token: ${{ github.token }}
+
+      # Manual trigger: latest successful artifacts from branch
+      - name: Download artifact (manual)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v5
+        with:
+          name: agnos-artifacts
+          path: ${{ github.workspace }}/ci-artifacts
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Read PR number and VERSION
         uses: actions/github-script@v7
@@ -55,8 +76,28 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git lfs track "*.xz"
-          git add .
-          git commit -m "build artifacts for PR #${{ env.PR_NUMBER }}"
+          git add .gitattributes
+          git commit -m "track LFS files" || true
+          
+          for f in *.xz; do
+            echo "Committing and pushing $f ..."
+            
+            # Stage and commit the single file
+            git add "$f"
+            git commit -m "add artifact $f for PR #${{ env.PR_NUMBER }}" || true
+          
+            # Push immediately (with retries)
+            RETRIES=5
+            for i in $(seq 1 $RETRIES); do
+              git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force && break
+              echo "Push failed for $f, retrying in $((i*10))s..."
+              sleep $((i*10))
+            done
+          done
+          
+          # Finally push agnos.json
+          git add agnos.json
+          git commit -m "add agnos.json for PR #${{ env.PR_NUMBER }}" || true
           git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
 
       - name: List .xz files with links
@@ -80,6 +121,7 @@ jobs:
           } >> $GITHUB_ENV
 
       - name: Comment on PR
+        if: github.event_name == 'workflow_run'
         uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
         with:
           message: |
