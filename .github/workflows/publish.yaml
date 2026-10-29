@@ -1,0 +1,81 @@
+name: publish
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+env:
+  HF_REPO: sunnypilot/agnos
+
+jobs:
+  publish:
+    name: build and publish to Hugging Face
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: true
+
+    - name: Fail if this VERSION is already published
+      run: |
+        URL="https://huggingface.co/$HF_REPO/resolve/main/$(cat VERSION)/agnos.json"
+        if curl -sfIL -o /dev/null "$URL"; then
+          echo "$URL already exists, bump VERSION"
+          exit 1
+        fi
+
+    - name: Get kernel submodule ref
+      id: kernel-submodule
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+
+    - name: Restore ccache
+      uses: actions/cache@v4
+      with:
+        path: .ccache
+        key: ccache-kernel-${{ steps.kernel-submodule.outputs.ref }}-${{ github.run_id }}
+        restore-keys: |
+          ccache-kernel-${{ steps.kernel-submodule.outputs.ref }}-
+          ccache-kernel-
+
+    - name: Build kernel
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+        CCACHE_MAXSIZE: 5G
+      run: ./build_kernel.sh
+
+    - name: Build system
+      run: ./build_system.sh
+
+    - name: Package OTA
+      env:
+        AGNOS_UPDATE_URL: https://huggingface.co/${{ env.HF_REPO }}/resolve/main
+        AGNOS_STAGING_UPDATE_URL: https://huggingface.co/${{ env.HF_REPO }}/resolve/main
+      run: scripts/package_ota.py
+
+    - name: Stage upload
+      run: |
+        VERSION=$(cat VERSION)
+        mkdir -p upload/$VERSION
+        mv output/ota/*.img.xz output/ota/*.img upload/
+        cp output/ota/ota.json upload/$VERSION/agnos.json
+        cp output/ota/all-partitions.json upload/$VERSION/all-partitions.json
+        ls -la upload upload/$VERSION
+
+    - name: Install the hf CLI
+      run: |
+        curl -LsSf https://hf.co/cli/install.sh | bash
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Upload to Hugging Face
+      env:
+        HF_OIDC_RESOURCE: ${{ env.HF_REPO }}
+      run: hf upload "$HF_REPO" upload . --commit-message "AGNOS $(cat VERSION) from ${GITHUB_SHA::7}"

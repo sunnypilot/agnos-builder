@@ -172,7 +172,8 @@ def process_file(entry):
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS]
+  # userdata images are built locally, not in CI; OTA images must always exist
+  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS if x.ota or x.path.exists()]
 
   configs = [
     # URL, file name, only OTA partitions
