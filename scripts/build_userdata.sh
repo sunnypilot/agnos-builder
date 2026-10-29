@@ -28,7 +28,7 @@ function create_image() {
 
   mkdir $MNTDIR
   sudo mount $USERDATA_IMAGE $MNTDIR
-  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $MNTDIR/openpilot
+  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/sunnypilot/sunnypilot.git $MNTDIR/openpilot
   sudo touch $MNTDIR/.openpilot_cache
 
   sudo git -C $MNTDIR/openpilot remote set-branches --add origin $RELEASE_BRANCH
