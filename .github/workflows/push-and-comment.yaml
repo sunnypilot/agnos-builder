@@ -13,22 +13,13 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' &&
       contains(github.event.workflow_run.head_commit.message, '[upload]')
-    timeout-minutes: 5
+    timeout-minutes: 30
     permissions:
+      id-token: write
       contents: read
       pull-requests: write
       actions: read
     steps:
-      - name: Setup SSH key
-        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
-        with:
-          ssh-private-key: ${{ secrets.CI_ARTIFACTS_GITLAB_DEPLOY_KEY }}
-
-      - name: Checkout ci-artifacts
-        run: |
-          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b main git@gitlab.com:sunnypilot/public/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
-
       - name: Download artifact
         id: download-artifact
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11
@@ -47,17 +38,22 @@ jobs:
             const version = fs.readFileSync('${{ github.workspace }}/ci-artifacts/VERSION', 'utf8').trim();
             core.exportVariable('VERSION', version);
 
+      - name: Install the hf CLI
+        run: |
+          curl -LsSf https://hf.co/cli/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Push boot, system and agnos.json
         working-directory: ${{ github.workspace }}/ci-artifacts
+        env:
+          HF_OIDC_RESOURCE: sunnypilot/agnos-ci
         run: |
+          # PR number comes from the artifact, so it may come from a fork: only digits go into the path
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "bad PR number: $PR_NUMBER"; exit 1; }
           mv ota.json agnos.json && rm ota-staging.json
-          git checkout -b agnos-builder/pr-${{ env.PR_NUMBER }}
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
-          git lfs track "*.xz"
-          git add .
-          git commit -m "build artifacts for PR #${{ env.PR_NUMBER }}"
-          git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
+          # raw system image is 4.7GB and nothing on device reads it; the .xz is enough for flashing
+          rm -f *.img
+          hf upload sunnypilot/agnos-ci . "pr-$PR_NUMBER" --commit-message "build artifacts for PR #$PR_NUMBER"
 
       - name: List .xz files with links
         working-directory: ${{ github.workspace }}/ci-artifacts
@@ -65,7 +61,7 @@ jobs:
           {
             echo 'XZ_FILES<<EOF'
             for file in *.xz; do
-              echo "* [$file](https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
+              echo "* [$file](https://huggingface.co/sunnypilot/agnos-ci/resolve/main/pr-${{ env.PR_NUMBER }}/$file)"
             done
             echo EOF
           } >> $GITHUB_ENV
@@ -85,7 +81,7 @@ jobs:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
             ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
-            In an openpilot branch, download <a href="https://gitlab.com/sunnypilot/public/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/common/hardware/comma/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
+            In an openpilot branch, download <a href="https://huggingface.co/sunnypilot/agnos-ci/resolve/main/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/common/hardware/comma/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
