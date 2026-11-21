@@ -20,18 +20,20 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - uses: actions/create-github-app-token@v1
-      id: app-token
-      with:
-        app-id: ${{ secrets.CI_GITHUB_ACTIONS_TOKEN_APP_ID }}
-        private-key: ${{ secrets.CI_GITHUB_ACTIONS_TOKEN_APP_PRIVATE_KEY }}
-        repositories: agnos-builder,agnos-kernel-sdm845
-
     - uses: actions/checkout@v4
       with:
         lfs: true
-        submodules: true
-        token: ${{ steps.app-token.outputs.token }}
+
+    - name: Checkout kernel
+      env:
+        KERNEL_DEPLOY_KEY: ${{ secrets.KERNEL_DEPLOY_KEY }}
+      run: |
+        eval "$(ssh-agent -s)"
+        ssh-add - <<< "$KERNEL_DEPLOY_KEY"
+        git -c url."git@github.com:sunnypilot/".insteadOf="https://github.com/sunnypilot/" \
+          -c core.sshCommand="ssh -o StrictHostKeyChecking=accept-new" \
+          submodule update --init --depth 1
+        ssh-agent -k
 
     - name: Fail if this VERSION is already published
       run: |
