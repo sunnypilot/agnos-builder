@@ -94,6 +94,7 @@ jobs:
         echo ${{ github.event.number }} > output/ota/PR
         cp VERSION output/ota
         echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
+        rm -f output/ota/*.img
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
