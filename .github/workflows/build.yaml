@@ -61,6 +61,12 @@ jobs:
       run: |
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+        sudo docker image prune -af
+        df -h /
+
     - name: Build system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
