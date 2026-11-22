@@ -214,6 +214,10 @@ COPY ./userspace/files/bluetooth-override.conf /etc/systemd/system/bluetooth.ser
 # Bluetooth firmware from the active slot's bluetooth partition, mounted by btattach.sh
 RUN mkdir /bt_firmware && ln -sT /bt_firmware/image /lib/firmware/qca
 
+# Bluetooth adapter stays off until something powers it on
+RUN sed -i 's/^#\?AutoEnable=.*/AutoEnable=false/' /etc/bluetooth/main.conf && \
+    grep -qx 'AutoEnable=false' /etc/bluetooth/main.conf
+
 # Remove qt network bearer plugins
 RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 
