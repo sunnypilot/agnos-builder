@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     name: build kernel and system
-    runs-on: [self-hosted, tier-high, arm, type-cax41, type-cax31, image-arm-snapshot-sunnylink-arm]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
       id-token: write
