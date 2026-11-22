@@ -14,7 +14,8 @@ systemctl enable agnos-debug.service
 systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable sound.service
-systemctl enable btattach.service
+systemctl enable bluetooth-param-watcher.path
+systemctl enable bluetooth-param-watcher.service
 systemctl enable magic.service
 systemctl enable init-qcom.service
 systemctl enable varwatch.service

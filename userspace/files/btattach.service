@@ -3,11 +3,7 @@ Description=Bluetooth UART attach
 After=init-qcom.service
 
 [Service]
-ExecCondition=/bin/grep -qx 1 /data/params/d/BluetoothEnabled
 ExecStart=/usr/comma/btattach.sh
 ExecStopPost=/usr/sbin/rfkill block bluetooth
 Restart=on-failure
 RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
