@@ -212,7 +212,7 @@ COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d
 COPY ./userspace/files/bluetooth-override.conf /etc/systemd/system/bluetooth.service.d/override.conf
 
 # Bluetooth firmware from the active slot's bluetooth partition, mounted by btattach.sh
-RUN mkdir /bt_firmware && ln -sT /bt_firmware/image /lib/firmware/qca
+RUN ln -sT /bt_firmware/image /lib/firmware/qca
 
 # Bluetooth adapter stays off until something powers it on
 RUN sed -i 's/^#\?AutoEnable=.*/AutoEnable=false/' /etc/bluetooth/main.conf && \
