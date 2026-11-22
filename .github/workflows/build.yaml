@@ -13,27 +13,40 @@ concurrency:
 jobs:
   build:
     name: build kernel and system
-    runs-on: ubuntu-24.04-arm
+    runs-on: [self-hosted, tier-high, arm, type-cax41, type-cax31, image-arm-snapshot-sunnylink-arm]
     timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
     steps:
+    - name: Install host tools
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends git-lfs gh zstd xz-utils
+
     - uses: actions/checkout@v4
       with:
         lfs: true
-        submodules: true
+
+    - name: Checkout kernel
+      env:
+        KERNEL_DEPLOY_KEY: ${{ secrets.KERNEL_DEPLOY_KEY }}
+      run: |
+        eval "$(ssh-agent -s)"
+        ssh-add - <<< "$KERNEL_DEPLOY_KEY"
+        git -c url."git@github.com:sunnypilot/".insteadOf="https://github.com/sunnypilot/" \
+          -c core.sshCommand="ssh -o StrictHostKeyChecking=accept-new" \
+          submodule update --init --depth 1
+        ssh-agent -k
 
     - name: Get commit message
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         {
           echo 'LAST_COMMIT_MESSAGE<<EOF'
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "${{ github.event.head_commit.message }}"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
-            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
-            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
-          fi
+          gh api repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha || github.sha }} --jq .commit.message
           echo EOF
         } | tee -a $GITHUB_ENV
 
@@ -61,12 +74,6 @@ jobs:
       run: |
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
-    - name: Free disk space
-      run: |
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
-        sudo docker image prune -af
-        df -h /
-
     - name: Build system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
@@ -81,25 +88,50 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_OUTPUT
 
-    - name: Package and OTA push
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+    - name: Package OTA
+      if: github.event_name == 'pull_request' && contains(env.LAST_COMMIT_MESSAGE, '[upload]')
       env:
         AGNOS_UPDATE_URL: https://huggingface.co/sunnypilot/agnos-ci/resolve/main/pr-${{ github.event.number }}
       run: |
         scripts/package_ota.py
+        cd output/ota
+        mv ota.json agnos.json && rm ota-staging.json
+        rm -f *.img
 
-    - name: Save PR number, VERSION and stats
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+    - name: Push to Hugging Face
+      if: github.event_name == 'pull_request' && contains(env.LAST_COMMIT_MESSAGE, '[upload]')
+      working-directory: output/ota
+      env:
+        HF_OIDC_RESOURCE: sunnypilot/agnos-ci
       run: |
-        echo ${{ github.event.number }} > output/ota/PR
-        cp VERSION output/ota
-        echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
-        rm -f output/ota/*.img
+        curl -LsSf https://hf.co/cli/install.sh | bash
+        ~/.local/bin/hf upload sunnypilot/agnos-ci . "pr-${{ github.event.number }}" --commit-message "build artifacts for PR #${{ github.event.number }}"
+        {
+          echo 'XZ_FILES<<EOF'
+          for file in *.xz; do
+            echo "* [$file](https://huggingface.co/sunnypilot/agnos-ci/resolve/main/pr-${{ github.event.number }}/$file)"
+          done
+          echo EOF
+        } >> $GITHUB_ENV
+        echo "VERSION=$(cat ../../VERSION)" >> $GITHUB_ENV
 
-    - name: Upload artifacts
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      uses: actions/upload-artifact@v4
+    - name: Comment on PR
+      if: github.event_name == 'pull_request' && contains(env.LAST_COMMIT_MESSAGE, '[upload]')
+      uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
       with:
-        name: agnos-artifacts
-        path: output/ota
-        compression-level: 0
+        message: |
+          <!-- _(run_id **${{ github.run_id }}**)_ -->
+          ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
+          In an openpilot branch, download <a href="https://huggingface.co/sunnypilot/agnos-ci/resolve/main/pr-${{ github.event.number }}/agnos.json">agnos.json</a> in `openpilot/common/hardware/comma/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
+
+          For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
+
+          ### Images:
+          ${{ env.XZ_FILES }}
+
+          ### Stats:
+          ```
+          ${{ steps.stats.outputs.stats_summary }}
+          ```
+        comment_tag: run_id
+        mode: recreate

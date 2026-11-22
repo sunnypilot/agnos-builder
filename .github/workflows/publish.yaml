@@ -14,16 +14,31 @@ jobs:
   publish:
     name: build and publish to Hugging Face
     if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-24.04-arm
+    runs-on: [self-hosted, tier-high, arm, type-cax41, type-cax31, image-arm-snapshot-sunnylink-arm]
     timeout-minutes: 120
     permissions:
       id-token: write
       contents: read
     steps:
+    - name: Install host tools
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends git-lfs gh zstd xz-utils
+
     - uses: actions/checkout@v4
       with:
         lfs: true
-        submodules: true
+
+    - name: Checkout kernel
+      env:
+        KERNEL_DEPLOY_KEY: ${{ secrets.KERNEL_DEPLOY_KEY }}
+      run: |
+        eval "$(ssh-agent -s)"
+        ssh-add - <<< "$KERNEL_DEPLOY_KEY"
+        git -c url."git@github.com:sunnypilot/".insteadOf="https://github.com/sunnypilot/" \
+          -c core.sshCommand="ssh -o StrictHostKeyChecking=accept-new" \
+          submodule update --init --depth 1
+        ssh-agent -k
 
     - name: Fail if this VERSION is already published
       run: |
