@@ -106,7 +106,7 @@ jobs:
         HF_OIDC_RESOURCE: sunnypilot/agnos-ci
       run: |
         curl -LsSf https://hf.co/cli/install.sh | bash
-        ~/.local/bin/hf upload sunnypilot/agnos-ci . "pr-${{ github.event.number }}" --commit-message "build artifacts for PR #${{ github.event.number }}"
+        ~/.local/bin/hf upload sunnypilot/agnos-ci . "pr-${{ github.event.number }}" --delete "*" --commit-message "build artifacts for PR #${{ github.event.number }}"
         {
           echo 'XZ_FILES<<EOF'
           for file in *.xz; do
