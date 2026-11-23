@@ -16,7 +16,8 @@ btattach -B /dev/ttyHS1 -P qca &
 
 # the controller stays unconfigured until it has an address; firmware loads first
 for i in $(seq 1 30); do
-  timeout 2 btmgmt --index 0 public-addr "$ADDR" && break
+  # btmgmt never sends the command when stdin is already at EOF (systemd gives /dev/null)
+  sleep 1 | timeout 3 btmgmt --index 0 public-addr "$ADDR" && break
   [ "$i" -lt 30 ] || exit 1
   sleep 1
 done
