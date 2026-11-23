@@ -75,6 +75,7 @@ jobs:
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
     - name: Build system
+      timeout-minutes: 25
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
       run: ./build_system.sh
