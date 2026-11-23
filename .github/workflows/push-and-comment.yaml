@@ -53,7 +53,7 @@ jobs:
           mv ota.json agnos.json && rm ota-staging.json
           # raw system image is 4.7GB and nothing on device reads it; the .xz is enough for flashing
           rm -f *.img
-          hf upload sunnypilot/agnos-ci . "pr-$PR_NUMBER" --commit-message "build artifacts for PR #$PR_NUMBER"
+          hf upload sunnypilot/agnos-ci . "pr-$PR_NUMBER" --delete "*" --commit-message "build artifacts for PR #$PR_NUMBER"
 
       - name: List .xz files with links
         working-directory: ${{ github.workspace }}/ci-artifacts
