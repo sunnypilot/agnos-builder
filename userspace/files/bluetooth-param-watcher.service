@@ -1,0 +1,10 @@
+[Unit]
+Description=Bluetooth param watcher
+After=init-qcom.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/set_bluetooth.sh
+
+[Install]
+WantedBy=multi-user.target
