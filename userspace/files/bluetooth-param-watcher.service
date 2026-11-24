@@ -1,6 +1,7 @@
 [Unit]
 Description=Bluetooth param watcher
 After=init-qcom.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
