@@ -17,6 +17,8 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
+systemctl enable bluetooth-param-watcher.path
+systemctl enable bluetooth-param-watcher.service
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 

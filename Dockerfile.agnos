@@ -154,6 +154,14 @@ RUN clang -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
+RUN mkdir -p /lib/firmware && ln -sT /bt_firmware/image /lib/firmware/qca && \
+    sed -i -e 's/^#\?AutoEnable=.*/AutoEnable=false/' \
+           -e 's/^#\?ControllerMode = .*/ControllerMode = le/' \
+           -e 's/^#\?Privacy = .*/Privacy = device/' /etc/bluetooth/main.conf && \
+    grep -qx 'AutoEnable=false' /etc/bluetooth/main.conf && \
+    grep -qx 'ControllerMode = le' /etc/bluetooth/main.conf && \
+    grep -qx 'Privacy = device' /etc/bluetooth/main.conf
+
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
