@@ -22,3 +22,18 @@ lib=/usr/lib/aarch64-linux-gnu
 rm -f "$lib"/libgallium-*.so "$lib"/libEGL_mesa.so* "$lib"/libGLX_mesa.so* "$lib"/libgbm.so.1.0.0
 rm -rf "$lib"/dri "$lib"/gbm
 rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
+
+# udev isn't used, see boot.sh. NetworkManager and others still depend on the package.
+dpkg --purge --force-depends udev
+rm -rf /usr/lib/udev /etc/udev
+
+# systemd loads every unit it can reach before it starts the first job, about 1 ms each at boot.
+# AGNOS has no initrd, TPM, encrypted or verity disks, sysext, fsck or binfmt, so drop their units.
+cd /usr/lib/systemd/system
+rm -rf initrd* systemd-pcr* systemd-tpm2* systemd-repart* systemd-firstboot* systemd-sysext* systemd-bsod* \
+  systemd-battery-check* systemd-hibernate-resume* systemd-soft-reboot* soft-reboot.target systemd-fsck* \
+  remote-* cryptsetup* veritysetup* integritysetup* systemd-binfmt* proc-sys-fs-binfmt*
+find . -xtype l -delete
+
+# goes over loglevel=3 from the kernel cmdline, the serial console is slow enough that printing errors stalls boot
+rm /etc/sysctl.d/10-console-messages.conf
