@@ -4,10 +4,12 @@
 
 apt-get update && apt-get install -y --no-install-recommends \
   bash-completion \
+  bluez \
   btop \
   hyperfine \
   iperf \
   iperf3 \
+  rfkill \
   ripgrep \
   ncdu \
   ncurses-bin \

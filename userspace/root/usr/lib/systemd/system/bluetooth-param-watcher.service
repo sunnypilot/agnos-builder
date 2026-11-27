@@ -1,0 +1,11 @@
+[Unit]
+Description=Bluetooth param watcher
+After=boot.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/set_bluetooth.sh
+
+[Install]
+WantedBy=multi-user.target
