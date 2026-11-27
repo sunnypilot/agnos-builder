@@ -7,14 +7,13 @@ export DEBIAN_FRONTEND=noninteractive
 # Identify this image to openpilot.
 touch /TICI /AGNOS
 
-# Install apt-fast.
+# Install package management prerequisites.
 apt-get update
 apt-get install --no-install-recommends -yq ca-certificates curl sudo wget
-bash -c "$(curl -fsSL https://git.io/vokNn)"
 
 # Base packages, development tools, and networking.
-apt-fast upgrade -yq
-apt-fast install --no-install-recommends -yq \
+apt-get upgrade -yq
+apt-get install --no-install-recommends -yq \
     adduser \
     alsa-utils \
     apport \
@@ -51,7 +50,6 @@ apt-fast install --no-install-recommends -yq \
     systemd-resolved \
     systemd-timesyncd \
     tmux \
-    udev \
     usbutils \
     vim \
     wpasupplicant
@@ -67,6 +65,7 @@ echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 # Kernel and scheduling settings.
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
 echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
+echo "kernel.sched_boost = 1" >> /etc/sysctl.conf
 echo "$USERNAME - rtprio 100" >> /etc/security/limits.conf
 echo "$USERNAME - nice -10" >> /etc/security/limits.conf
 

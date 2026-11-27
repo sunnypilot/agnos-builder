@@ -1,22 +1,15 @@
 #!/bin/bash -e
 
-# Enable DSP services
-systemctl enable cdsp
-
 # Enable our services
-systemctl enable fs_setup.service
-systemctl enable serial-hostname.service
+systemctl enable boot.service
+systemctl enable uevent-helper.service
 systemctl enable comma.service
 systemctl enable agnos-debug.service
-systemctl enable gpio.service
 systemctl enable ultimate_provisioning.service
 systemctl enable lte.service
 systemctl enable modem.service
-systemctl enable sound.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
 systemctl enable wifi.service
-systemctl enable varwatch.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
@@ -26,7 +19,6 @@ systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
-systemctl enable screen_calibration.service
 
 # Disable SSH by default, ssh-param-watcher starts it
 systemctl disable ssh ssh.socket
@@ -46,5 +38,15 @@ systemctl disable motd-news.timer
 systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
-ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
+
+# boot.sh mounts a fresh /tmp, and this would delete what's already using it
+ln -s /dev/null /etc/tmpfiles.d/tmp.conf
 systemctl disable dpkg-db-backup.timer
+
+# unused, and mounting them all at once can trip systemd's mount rate limit, holding up everything else for up to 1s
+systemctl mask sys-fs-fuse-connections.mount sys-kernel-tracing.mount sys-kernel-config.mount
+# NetworkManager waits on this at startup and nothing uses it
+systemctl mask systemd-hostnamed.service
+
+# Promote SSH sessions, leaving the listening daemon in the background.
+echo "session optional pam_exec.so /usr/comma/run_in_app_group.sh" >> /etc/pam.d/sshd

@@ -10,33 +10,26 @@ RESET_TRIGGER="/data/__system_reset__"
 
 # blip power to ~5W to see if the PSU is stable
 if grep -q mici /sys/firmware/devicetree/base/model; then
-  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2
+  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2 &
 fi
 
-# use max freq to boot up quickly, then limit
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-
 echo "waiting for magic"
-for i in {1..200}; do
-  if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+for i in {1..2000}; do
+  if [ -S /tmp/drmfd.sock ]; then
     break
   fi
-  sleep 0.1
+  sleep 0.01
 done
 
-if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+if [ -S /tmp/drmfd.sock ]; then
   echo "magic ready after ${SECONDS}s"
 else
   echo "timed out waiting for magic, ${SECONDS}s"
 fi
 
-sudo chown comma: /data
-sudo chown comma: /data/media
-
 handle_setup_keys () {
   # install default SSH key while still in setup
-  if [[ ! -e /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then
+  if [[ ! -s /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then
     if [ ! -e /data/params/d ]; then
       mkdir -p /data/params/d_tmp
       ln -s /data/params/d_tmp /data/params/d
@@ -44,6 +37,8 @@ handle_setup_keys () {
 
     echo -n 1 > /data/params/d/AdbEnabled
     echo -n 1 > /data/params/d/SshEnabled
+    # a power cut can leave these empty. GithubSshKeys goes last and is checked above, so that redoes them next boot
+    sync /data/params/d/AdbEnabled /data/params/d/SshEnabled
     cp /usr/comma/setup_keys /data/params/d/GithubSshKeys
   elif [[ -e /data/params/d/GithubSshKeys && -e /data/continue.sh ]]; then
     if cmp -s /data/params/d/GithubSshKeys /usr/comma/setup_keys; then
@@ -70,10 +65,6 @@ if [ ! -f /run/comma-booted ]; then
   fi
 fi
 
-# setup /data/tmp
-rm -rf /data/tmp
-mkdir -p /data/tmp
-
 # symlink vscode to userdata
 mkdir -p /data/tmp/vscode-server
 ln -s /data/tmp/vscode-server ~/.vscode-server
@@ -81,21 +72,20 @@ ln -s /data/tmp/vscode-server ~/.cursor-server
 ln -s /data/tmp/vscode-server ~/.windsurf-server
 
 while true; do
-  pkill -f "$SETUP"
   handle_setup_keys
 
   if [ -f $CONTINUE ]; then
     exec "$CONTINUE"
   fi
 
-  sudo abctl --set_success
-
   # cleanup installers from previous runs
   rm -f $INSTALLER
-  pkill -f $INSTALLER
 
-  # run setup and wait for installer
-  $SETUP &
+  # run setup first, it only needs the screen. the rest can happen while it starts
+  "$SETUP" &
+  pkill -f $INSTALLER
+  sudo abctl --set_success
+
   echo "waiting for installer"
   while [ ! -f $INSTALLER ]; do
     sleep 0.1
@@ -108,4 +98,5 @@ while true; do
   while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
     sleep 0.1
   done
+  pkill -f "$SETUP"
 done
